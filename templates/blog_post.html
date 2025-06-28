@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Blog Post - MyBlog{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Back Button -->
+            <div class="mb-4">
+                <a href="{{ url_for('blog') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Blogga qaytish
+                </a>
+            </div>
+            
+            <!-- Blog Post Content -->
+            <div id="blogPostContent">
+                <!-- Post ma'lumotlari JavaScript orqali yuklanadi -->
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Yuklanmoqda...</span>
+                    </div>
+                    <p class="mt-3">Post yuklanmoqda...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// URL dan post ID ni olish
+const pathParts = window.location.pathname.split('/');
+const postId = pathParts[pathParts.length - 1];
+
+async function loadBlogPost() {
+    try {
+        const response = await fetch(`/api/posts/${postId}`);
+        
+        if (!response.ok) {
+            throw new Error('Post topilmadi');
+        }
+        
+        const post = await response.json();
+        
+        const container = document.getElementById('blogPostContent');
+        container.innerHTML = `
+            <article class="blog-post">
+                <header class="mb-4">
+                    <h1 class="display-5 fw-bold mb-3">${post.title}</h1>
+                    <div class="text-muted mb-3">
+                        <i class="fas fa-calendar me-2"></i>${new Date(post.date).toLocaleDateString('uz-UZ', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        })}
+                    </div>
+                </header>
+                
+                ${post.image ? `
+                    <div class="mb-4">
+                        <img src="${post.image}" alt="${post.title}" class="img-fluid rounded shadow-sm" style="width: 100%; max-height: 400px; object-fit: cover;">
+                    </div>
+                ` : ''}
+                
+                <div class="blog-content">
+                    <div class="fs-5 lh-lg" style="white-space: pre-line;">${post.content}</div>
+                </div>
+                
+                <hr class="my-5">
+                
+                <div class="text-center">
+                    <h5 class="mb-3">Bu post foydali bo'ldimi?</h5>
+                    <div class="d-flex justify-content-center gap-3">
+                        <button class="btn btn-outline-success" onclick="likePost()">
+                            <i class="fas fa-thumbs-up me-2"></i>Ha, foydali
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="sharePost()">
+                            <i class="fas fa-share me-2"></i>Ulashish
+                        </button>
+                    </div>
+                </div>
+            </article>
+        `;
+        
+        // Page title ni yangilash
+        document.title = `${post.title} - MyBlog`;
+        
+    } catch (error) {
+        console.error('Post yuklashda xatolik:', error);
+        
+        const container = document.getElementById('blogPostContent');
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <div class="mb-4">
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning"></i>
+                </div>
+                <h3>Post topilmadi</h3>
+                <p class="text-muted">Kechirasiz, siz qidirayotgan post mavjud emas yoki o'chirilgan.</p>
+                <a href="{{ url_for('blog') }}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Blogga qaytish
+                </a>
+            </div>
+        `;
+    }
+}
+
+function likePost() {
+    alert('Rahmat! Sizning fikringiz biz uchun muhim.');
+}
+
+function sharePost() {
+    if (navigator.share) {
+        navigator.share({
+            title: document.title,
+            url: window.location.href
+        });
+    } else {
+        // Fallback: URL ni clipboard ga nusxalash
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            alert('Post havolasi nusxalandi!');
+        });
+    }
+}
+
+// Sahifa yuklanganda postni yuklash
+document.addEventListener('DOMContentLoaded', loadBlogPost);
+</script>
+{% endblock %}
+
+

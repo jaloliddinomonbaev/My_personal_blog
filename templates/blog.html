@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}Blog - MyBlog{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-12 d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-newspaper me-2"></i>Blog Postlari</h1>
+            <button class="btn btn-outline-primary" id="adminToggle"><i class="fas fa-user-shield me-2"></i>Admin Panel</button>
+        </div>
+    </div>
+
+    <div class="modal fade" id="adminModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Admin Kirish</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="adminLoginForm">
+                        <div class="mb-3">
+                            <label for="adminUsername" class="form-label">Foydalanuvchi nomi</label>
+                            <input type="text" class="form-control" id="adminUsername" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="adminPassword" class="form-label">Parol</label>
+                            <input type="password" class="form-control" id="adminPassword" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Kirish</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="adminPanel" class="card mb-4" style="display: none;">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-cog me-2"></i>Admin Panel - Jaloliddin
+                <button class="btn btn-sm btn-outline-danger float-end" id="adminLogout"><i class="fas fa-sign-out-alt me-1"></i>Chiqish</button>
+            </h5>
+        </div>
+        <div class="card-body">
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addPostModal">
+                <i class="fas fa-plus me-2"></i>Yangi Post Qo'shish
+            </button>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addPostModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Yangi Blog Post Qo'shish</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addPostForm">
+                        <div class="mb-3">
+                            <label for="postTitle" class="form-label">Sarlavha</label>
+                            <input type="text" class="form-control" id="postTitle" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="postImage" class="form-label">Rasm tanlash</label>
+                            <input type="file" class="form-control" id="postImage" accept="image/*" required>
+                            <div class="form-text">PNG, JPG, JPEG, GIF, WEBP formatlarida rasm tanlang (maksimal 16MB)</div>
+                            <div id="imagePreview" class="mt-3" style="display: none;">
+                                <img id="previewImg" src="/placeholder.svg" class="img-thumbnail" style="max-width: 300px; max-height: 200px;">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="postContent" class="form-label">Matn</label>
+                            <textarea class="form-control" id="postContent" rows="8" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="savePostBtn">
+                            <i class="fas fa-save me-2"></i>Saqlash
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row" id="blogPosts"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let isAdminLoggedIn = false;
+let adminKey = '';
+
+document.getElementById('postImage').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('previewImg').src = e.target.result;
+            document.getElementById('imagePreview').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    } else {
+        document.getElementById('imagePreview').style.display = 'none';
+    }
+});
+
+document.getElementById('adminLoginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const username = document.getElementById('adminUsername').value;
+    const password = document.getElementById('adminPassword').value;
+
+    const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    });
+    const result = await response.json();
+
+    if (result.success) {
+        isAdminLoggedIn = true;
+        adminKey = result.admin_key;
+        document.getElementById('adminPanel').style.display = 'block';
+        bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide();
+        alert('Admin panelga muvaffaqiyatli kirildi!');
+        loadBlogPosts();
+    } else {
+        alert('Noto\'g\'ri ma\'lumotlar!');
+    }
+});
+
+document.getElementById('adminToggle').addEventListener('click', function() {
+    if (isAdminLoggedIn) {
+        document.getElementById('adminPanel').style.display =
+            document.getElementById('adminPanel').style.display === 'none' ? 'block' : 'none';
+    } else {
+        new bootstrap.Modal(document.getElementById('adminModal')).show();
+    }
+});
+
+document.getElementById('adminLogout').addEventListener('click', function() {
+    isAdminLoggedIn = false;
+    adminKey = '';
+    document.getElementById('adminPanel').style.display = 'none';
+    document.getElementById('adminLoginForm').reset();
+    loadBlogPosts();
+});
+
+async function uploadImage(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+        const response = await fetch('/api/admin/upload-image', {
+            method: 'POST',
+            headers: { 'Admin-Key': adminKey },
+            body: formData
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Rasm yuklashda xatolik:', error);
+        return { success: false, message: 'Rasm yuklanmadi!' };
+    }
+}
+
+document.getElementById('addPostForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    if (!isAdminLoggedIn) {
+        alert('Admin huquqi kerak!');
+        return;
+    }
+
+    const saveBtn = document.getElementById('savePostBtn');
+    const originalBtnText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Yuklanmoqda...';
+    saveBtn.disabled = true;
+
+    try {
+        const imageFile = document.getElementById('postImage').files[0];
+        let imageUrl = '';
+
+        if (imageFile) {
+            const uploadResult = await uploadImage(imageFile);
+            if (uploadResult.success) {
+                imageUrl = uploadResult.image_url;
+            } else {
+                alert('Rasm yuklanmadi: ' + uploadResult.message);
+                saveBtn.innerHTML = originalBtnText;
+                saveBtn.disabled = false;
+                return;
+            }
+        }
+
+        const postData = {
+            title: document.getElementById('postTitle').value,
+            content: document.getElementById('postContent').value,
+            image: imageUrl
+        };
+
+        const response = await fetch('/api/admin/posts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Admin-Key': adminKey
+            },
+            body: JSON.stringify(postData)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Post qo\'shildi!');
+            bootstrap.Modal.getInstance(document.getElementById('addPostModal')).hide();
+            document.getElementById('addPostForm').reset();
+            document.getElementById('imagePreview').style.display = 'none';
+            loadBlogPosts();
+        } else {
+            alert('Xatolik: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Post qo\'shishda xatolik:', error);
+        alert('Xatolik yuz berdi!');
+    } finally {
+        saveBtn.innerHTML = originalBtnText;
+        saveBtn.disabled = false;
+    }
+});
+
+async function deletePost(postId) {
+    if (!isAdminLoggedIn) {
+        alert('Admin huquqi kerak!');
+        return;
+    }
+
+    if (!confirm('Bu postni o\'chirishni xohlaysizmi?')) return;
+
+    try {
+        const response = await fetch(`/api/admin/posts/${postId}`, {
+            method: 'DELETE',
+            headers: { 'Admin-Key': adminKey }
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Post o\'chirildi!');
+            loadBlogPosts();
+        } else {
+            alert('Xatolik: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Post o\'chirishda xatolik:', error);
+        alert('Xatolik yuz berdi!');
+    }
+}
+
+function viewPost(postId) {
+    window.location.href = `/blog/${postId}`;
+}
+
+async function loadBlogPosts() {
+    try {
+        const response = await fetch('/api/posts');
+        const posts = await response.json();
+        const container = document.getElementById('blogPosts');
+        container.innerHTML = posts.map(post => `
+            <div class="col-md-4 mb-4">
+                <div class="card blog-card h-100">
+                    <img src="${post.image || '/placeholder.svg'}" class="card-img-top" style="height: 200px; object-fit: cover;">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">${post.title}</h5>
+                        <p class="card-text flex-grow-1">${post.excerpt || (post.content.length > 100 ? post.content.substring(0, 100) + '...' : post.content)}</p>
+                        <div class="mt-auto">
+                            <small class="text-muted d-block mb-2"><i class="fas fa-calendar me-1"></i>${post.date}</small>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-primary btn-sm" onclick="viewPost('${post.id}')"><i class="fas fa-eye me-1"></i>O'qish</button>
+                                ${isAdminLoggedIn ? `<button class="btn btn-danger btn-sm" onclick="deletePost('${post.id}')"><i class="fas fa-trash me-1"></i>O'chirish</button>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Postlarni yuklashda xatolik:', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadBlogPosts);
+</script>
+{% endblock %}

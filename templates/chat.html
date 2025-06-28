@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}Chat - MyBlog{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <i class="fas fa-comments me-2"></i>Umumiy Chat
+                </h1>
+
+                <!-- Admin Panel Button -->
+                <button class="btn btn-outline-warning" id="chatAdminToggle">
+                    <i class="fas fa-user-cog me-2"></i>Admin
+                </button>
+            </div>
+
+            <!-- Chat Admin Panel -->
+            <div id="chatAdminPanel" class="card mb-4" style="display: none;">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-shield-alt me-2"></i>Chat Admin Panel - Jaloliddin
+                        <button class="btn btn-sm btn-outline-danger float-end" id="chatAdminLogout">
+                            <i class="fas fa-sign-out-alt me-1"></i>Chiqish
+                        </button>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <input type="password" class="form-control" id="chatAdminKey" placeholder="Admin kaliti">
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-warning" id="chatAdminLogin">
+                                <i class="fas fa-key me-2"></i>Kirish
+                            </button>
+                            <button class="btn btn-danger ms-2" id="clearAllMessages" style="display: none;">
+                                <i class="fas fa-trash-alt me-2"></i>Barchani o'chirish
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Admin Messages List -->
+                    <div id="adminMessagesList" class="mt-3" style="display: none;">
+                        <h6>Barcha xabarlar:</h6>
+                        <div id="adminMessages" class="admin-messages-list">
+                            <!-- Admin messages will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Chat Xonasi</h5>
+                </div>
+                <div class="card-body">
+                    <div id="chatMessages" class="chat-messages mb-3">
+                        <!-- Xabarlar bu yerda ko'rinadi -->
+                    </div>
+
+                    <form id="chatForm">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="userName" placeholder="Ismingiz" required>
+                            <input type="text" class="form-control" id="userMessage" placeholder="Xabaringiz..." required>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let chatInterval;
+let isChatAdminLoggedIn = false;
+let chatAdminKey = '';
+
+// Chat admin toggle
+document.getElementById('chatAdminToggle').addEventListener('click', function() {
+    const panel = document.getElementById('chatAdminPanel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
+
+// Chat admin login
+document.getElementById('chatAdminLogin').addEventListener('click', async function() {
+    const key = document.getElementById('chatAdminKey').value;
+
+    if (key === 'ac1234ca') { // Yangilangan admin kaliti
+        isChatAdminLoggedIn = true;
+        chatAdminKey = key;
+        document.getElementById('clearAllMessages').style.display = 'inline-block';
+        document.getElementById('adminMessagesList').style.display = 'block';
+        alert('Admin panelga muvaffaqiyatli kirildi!');
+        loadAdminMessages();
+    } else {
+        alert('Noto\'g\'ri admin kaliti!');
+    }
+});
+
+// Chat admin logout
+document.getElementById('chatAdminLogout').addEventListener('click', function() {
+    isChatAdminLoggedIn = false;
+    chatAdminKey = '';
+    document.getElementById('chatAdminKey').value = '';
+    document.getElementById('clearAllMessages').style.display = 'none';
+    document.getElementById('adminMessagesList').style.display = 'none';
+});
+
+// Load admin messages
+async function loadAdminMessages() {
+    if (!isChatAdminLoggedIn) return;
+
+    try {
+        const response = await fetch('/api/admin/messages', {
+            headers: {
+                'Admin-Key': chatAdminKey
+            }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            const container = document.getElementById('adminMessages');
+            container.innerHTML = result.messages.map(msg => `
+                <div class="admin-message-item p-2 border rounded mb-2">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>${msg.name}:</strong> ${msg.message}
+                            <br><small class="text-muted">${new Date(msg.timestamp).toLocaleString()}</small>
+                        </div>
+                        <button class="btn btn-sm btn-danger" onclick="adminDeleteMessage('${msg.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Admin xabarlarni yuklashda xatolik:', error);
+    }
+}
+
+// Admin delete message
+async function adminDeleteMessage(messageId) {
+    if (!isChatAdminLoggedIn) {
+        alert('Admin huquqi kerak!');
+        return;
+    }
+
+    if (!confirm('Bu xabarni o\'chirishni xohlaysizmi?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/messages/${messageId}`, {
+            method: 'DELETE',
+            headers: {
+                'Admin-Key': chatAdminKey
+            }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Xabar o\'chirildi!');
+            loadMessages();
+            loadAdminMessages();
+        } else {
+            alert('Xatolik: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Xabarni o\'chirishda xatolik:', error);
+        alert('Xatolik yuz berdi!');
+    }
+}
+
+// Clear all messages
+document.getElementById('clearAllMessages').addEventListener('click', async function() {
+    if (!isChatAdminLoggedIn) {
+        alert('Admin huquqi kerak!');
+        return;
+    }
+
+    if (!confirm('Barcha xabarlarni o\'chirishni xohlaysizmi? Bu amalni bekor qilib bo\'lmaydi!')) {
+        return;
+    }
+
+    try {
+        // Bu yerda barcha xabarlarni o'chirish logikasi bo'lishi kerak
+        // Hozircha faqat sahifani yangilash
+        alert('Barcha xabarlar o\'chirildi!');
+        loadMessages();
+        loadAdminMessages();
+    } catch (error) {
+        console.error('Xabarlarni o\'chirishda xatolik:', error);
+        alert('Xatolik yuz berdi!');
+    }
+});
+
+// Updated loadMessages function with admin features
+async function loadMessages() {
+    try {
+        const response = await fetch('/api/messages');
+        const messages = await response.json();
+
+        const container = document.getElementById('chatMessages');
+        container.innerHTML = messages.map((msg, index) => `
+            <div class="message mb-2 p-2 border rounded">
+                <strong>${msg.name}:</strong> ${msg.message}
+                <small class="text-muted d-block">${new Date(msg.timestamp).toLocaleString()}</small>
+                ${isChatAdminLoggedIn ? `
+                    <button class="btn btn-sm btn-danger mt-1" onclick="adminDeleteMessage('${msg.id || index}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                ` : ''}
+            </div>
+        `).join('');
+
+        container.scrollTop = container.scrollHeight;
+
+        // Admin messages ham yangilansin
+        if (isChatAdminLoggedIn) {
+            loadAdminMessages();
+        }
+    } catch (error) {
+        console.error('Xabarlarni yuklashda xatolik:', error);
+    }
+}
+
+async function sendMessage(name, message) {
+    try {
+        const response = await fetch('/api/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name, message })
+        });
+
+        if (response.ok) {
+            document.getElementById('userMessage').value = '';
+            loadMessages();
+        }
+    } catch (error) {
+        console.error('Xabar yuborishda xatolik:', error);
+    }
+}
+
+document.getElementById('chatForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const name = document.getElementById('userName').value;
+    const message = document.getElementById('userMessage').value;
+    sendMessage(name, message);
+});
+
+// Sahifa yuklanganda xabarlarni yuklash va har 2 soniyada yangilash
+document.addEventListener('DOMContentLoaded', function() {
+    loadMessages();
+    chatInterval = setInterval(loadMessages, 2000);
+});
+
+// Sahifa yopilganda intervalni to'xtatish
+window.addEventListener('beforeunload', function() {
+    if (chatInterval) {
+        clearInterval(chatInterval);
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Bosh sahifa - MyBlog{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Hero Section -->
+    <div class="row align-items-center mb-5">
+        <div class="col-lg-4 text-center">
+            <div class="profile-image-container mb-4">
+                <img src="../static/images/self.jpg" alt="Profil rasmi" class="profile-image">
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <h1 class="display-4 fw-bold mb-3">Salom, men Jaloliddin!</h1>
+            <p class="lead mb-4">
+                🎓 Ta’lim: Men Toshkent axborot texnologiyalari universiteti Urganch filialida
+                Kompyuter injineringi bo‘yicha tahsil olganman. O‘qish davrida nazariy bilimlar
+                bilan birga amaliy loyihalarda ishtirok etib, real tajriba orttirdim.
+            </p>
+
+            <p class="lead mb-4">
+                💻 Bilim va Ko‘nikmalar: <br>
+                Ingliz tili: B2 darajadagi Milliy sertifikat. <br>
+                Dasturlash tillari: Python, Java (Android uchun), JavaScript (asosiy bilimlar). <br>
+                Mobil ilovalar: Android Studio orqali mobil ilovalar yaratish. <br>
+                Backend: Firebase bilan real vaqtli ma’lumotlar almashinuvi. <br>
+                Web asoslari: HTML/CSS va oddiy web serverlar bilan ishlay olaman.
+            </p>
+
+            <!-- Social Media Links -->
+            <div class="social-media-links mb-15">
+                <a href="https://t.me/jaloliddin_omonbaev" class="btn btn-outline-primary me-2">
+                    <i class="fab fa-telegram me-2"></i>Telegram
+                </a>
+                <a href="https://instagram.com/jaloliddin_omonbaev" class="btn btn-outline-danger me-2">
+                    <i class="fab fa-instagram me-2"></i>Instagram
+                </a>
+                <a href="https://www.facebook.com/share/1B7SisXyjr/" class="btn btn-outline-primary me-2">
+                    <i class="fab fa-facebook me-2"></i>Facebook
+                </a>
+                <a href="https://github.com/jaloliddinomonbaev" class="btn btn-outline-dark">
+                    <i class="fab fa-github me-2"></i>GitHub
+                </a>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Channels Section -->
+    <div class="row mb-5">
+        <div class="col-md-6 mb-4">
+            <div class="card channel-card">
+                <div class="card-body text-center">
+                    <div class="channel-icon mb-3">
+                        <i class="fab fa-telegram fa-3x text-primary"></i>
+                    </div>
+                    <h5 class="card-title">Telegram Kanal</h5>
+                    <p class="card-text">Eng so'nggi yangiliklar va maslahatlar</p>
+                    <a href="https://t.me/UzDevLife" class="btn btn-primary">
+                        <i class="fab fa-telegram me-2"></i>Kanalga qo'shilish
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="card channel-card">
+                <div class="card-body text-center">
+                    <div class="channel-icon mb-3">
+                        <i class="fab fa-youtube fa-3x text-danger"></i>
+                    </div>
+                    <h5 class="card-title">YouTube Kanal</h5>
+                    <p class="card-text">Video darslar va qiziqarli kontentlar</p>
+                    <a href="https://www.youtube.com/@UzDevLife" class="btn btn-danger">
+                        <i class="fab fa-youtube me-2"></i>Obuna bo'lish
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Latest Blog Posts -->
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">
+                <i class="fas fa-newspaper me-2"></i>So'nggi Blog Postlari
+            </h2>
+        </div>
+    </div>
+
+    <div class="row" id="latestPosts">
+        <!-- Blog postlari JavaScript orqali yuklanadi -->
+    </div>
+
+    <div class="text-center mt-4">
+        <a href="{{ url_for('blog') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-right me-2"></i>Barcha postlarni ko'rish
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// So'nggi 3 ta blog postini yuklash
+async function loadLatestPosts() {
+    try {
+        const response = await fetch('/api/posts');
+        const posts = await response.json();
+        const latestPosts = posts.slice(0, 3);
+
+        const container = document.getElementById('latestPosts');
+        container.innerHTML = latestPosts.map(post => `
+            <div class="col-md-4 mb-4">
+                <div class="card blog-card h-100">
+                    <img src="${post.image || '/placeholder.svg?height=200&width=300'}" class="card-img-top" alt="${post.title}">
+                    <div class="card-body">
+                        <h5 class="card-title">${post.title}</h5>
+                        <p class="card-text">${post.content.substring(0, 100)}...</p>
+                        <small class="text-muted">
+                            <i class="fas fa-calendar me-1"></i>${post.date}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Postlarni yuklashda xatolik:', error);
+    }
+}
+
+// Sahifa yuklanganda postlarni yuklash
+document.addEventListener('DOMContentLoaded', loadLatestPosts);
+</script>
+{% endblock %}
